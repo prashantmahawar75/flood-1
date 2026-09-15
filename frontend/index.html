@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PRAHARI • Risk-Aware Evacuation Routing</title>
+  <meta name="description" content="PRAHARI flash-flood risk scoring and risk-aware Dijkstra evacuation routing over live OpenStreetMap roads." />
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">P</div>
+      <div>
+        <h1>PRAHARI <span>PravahAI</span></h1>
+        <p>Flash-flood intelligence + risk-aware evacuation routing</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="apiStatus" class="status-dot">Checking API…</span>
+      <span class="badge">SIH 26192</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="panel intro-panel">
+        <div class="eyebrow">Operational workflow</div>
+        <h2>ML risk → road risk → safest path</h2>
+        <p>Score conditions at one or more locations, then route around dangerous roads using live OpenStreetMap data and project-owned Dijkstra.</p>
+      </section>
+
+      <section class="panel step-panel">
+        <div class="step-title"><span>1</span><div><strong>Choose origin</strong><small>Current location, CWC station, or map click</small></div></div>
+        <div class="button-row">
+          <button id="useLocationBtn" class="btn primary">Use my location</button>
+          <button id="setOriginBtn" class="btn secondary">Pick on map</button>
+        </div>
+        <label class="field-label" for="stationSelect">Or start from monitored station</label>
+        <select id="stationSelect" class="field"><option value="">Loading stations…</option></select>
+        <div id="originReadout" class="coordinate-card muted">No origin selected</div>
+      </section>
+
+      <section class="panel step-panel">
+        <div class="step-title"><span>2</span><div><strong>Score flood risk</strong><small>Backend Random Forest, 7 deployed PRAHARI features</small></div></div>
+        <div class="grid-2">
+          <label>Rainfall today (mm)<input id="rainfall" class="field" type="number" min="0" value="85" /></label>
+          <label>3-day rainfall (mm)<input id="rainfall3d" class="field" type="number" min="0" value="190" /></label>
+          <label>River discharge (m³/s)<input id="discharge" class="field" type="number" min="0" value="310" /></label>
+          <label>Discharge change<input id="dischargeRoc" class="field" type="number" value="65" /></label>
+          <label>Slope (°)<input id="slope" class="field" type="number" min="0" max="90" value="14.2" /></label>
+          <label>Drainage density<input id="drainage" class="field" type="number" min="0" step="0.01" value="2.45" /></label>
+        </div>
+        <label class="checkbox-row"><input id="sensorOutage" type="checkbox" /> Discharge sensor outage</label>
+        <button id="scoreRiskBtn" class="btn danger full">Run ML risk score</button>
+        <div id="latestRisk" class="risk-card empty">
+          <span class="risk-label">Latest score</span>
+          <strong>—</strong>
+          <small>Select an origin and run the model.</small>
+        </div>
+        <div class="subheading">Active spatial risk points</div>
+        <div id="riskPointsList" class="risk-list"><div class="muted mini">None yet.</div></div>
+        <button id="clearRiskBtn" class="text-button">Clear risk points</button>
+      </section>
+
+      <section class="panel step-panel">
+        <div class="step-title"><span>3</span><div><strong>Choose destination</strong><small>OSM candidate refuge facility or map click</small></div></div>
+        <div class="button-row">
+          <button id="loadFacilitiesBtn" class="btn primary">Find nearby facilities</button>
+          <button id="setDestinationBtn" class="btn secondary">Pick on map</button>
+        </div>
+        <div id="facilityStatus" class="source-status hidden"></div>
+        <div id="facilityCards" class="facility-cards"><div class="muted mini">Search to see nearby candidate facilities.</div></div>
+        <select id="facilitySelect" class="field"><option value="">No facility selected</option></select>
+        <div id="destinationReadout" class="coordinate-card muted">No destination selected</div>
+        <p class="disclaimer">OSM facilities are <strong>candidate refuge facilities</strong>, not verified official disaster shelters.</p>
+      </section>
+
+      <section class="panel step-panel">
+        <div class="step-title"><span>4</span><div><strong>Calculate safest route</strong><small>Risk-weighted Dijkstra over live roads</small></div></div>
+        <label class="field-label" for="riskPenalty">Flood-risk penalty <span id="riskPenaltyValue">10×</span></label>
+        <input id="riskPenalty" class="range" type="range" min="0" max="25" step="1" value="10" />
+        <label class="field-label" for="blockThreshold">Block roads above risk</label>
+        <select id="blockThreshold" class="field">
+          <option value="0.97">97% (default)</option>
+          <option value="0.90">90%</option>
+          <option value="0.85">85%</option>
+          <option value="">Never hard-block; penalize only</option>
+        </select>
+        <button id="routeBtn" class="btn route full">Find safest route</button>
+        <div id="routeError" class="error-box hidden"></div>
+      </section>
+
+      <section class="panel safety-note">
+        <strong>Decision support only.</strong>
+        <p>Do not treat this demo as an official evacuation order. Follow instructions from local authorities and emergency services.</p>
+      </section>
+    </aside>
+
+    <section class="map-shell">
+      <div id="map"></div>
+      <div class="map-toolbar">
+        <span id="mapMode">Map ready</span>
+        <button id="cancelMapMode" class="mini-btn hidden">Cancel selection</button>
+      </div>
+      <div class="legend">
+        <div><i class="dot safe"></i> Safe risk point</div>
+        <div><i class="dot watch"></i> Watch</div>
+        <div><i class="dot high"></i> High risk</div>
+        <div><i class="line route-line"></i> Safest route</div>
+      </div>
+      <div id="routeSummary" class="route-summary hidden">
+        <div class="summary-head">
+          <div><span>Recommended path</span><strong id="routeEngine">Risk-aware Dijkstra</strong><small id="routingProvider" class="routing-provider">Waiting for route</small></div>
+          <span id="routeRiskBadge" class="route-risk-badge">—</span>
+        </div>
+        <div class="summary-grid">
+          <div><span>Distance</span><strong id="routeDistance">—</strong></div>
+          <div><span>ETA</span><strong id="routeEta">—</strong></div>
+          <div><span>Avg route risk</span><strong id="routeAvgRisk">—</strong></div>
+          <div><span>Max segment risk</span><strong id="routeMaxRisk">—</strong></div>
+          <div><span>Extra vs shortest</span><strong id="routeExtra">—</strong></div>
+          <div><span>Risky edges avoided</span><strong id="routeAvoided">—</strong></div>
+        </div>
+        <p id="routeExplanation" class="summary-explanation"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="/app.js"></script>
+</body>
+</html>

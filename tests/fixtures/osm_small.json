@@ -1,0 +1,12 @@
+{
+  "version": 0.6,
+  "elements": [
+    {"type":"node","id":1,"lat":11.0000,"lon":76.0000},
+    {"type":"node","id":2,"lat":11.0000,"lon":76.0100},
+    {"type":"node","id":3,"lat":11.0000,"lon":76.0200},
+    {"type":"node","id":4,"lat":11.0100,"lon":76.0100},
+    {"type":"node","id":5,"lat":11.0200,"lon":76.0100},
+    {"type":"way","id":100,"nodes":[1,2,3],"tags":{"highway":"residential","name":"Valley Road"}},
+    {"type":"way","id":200,"nodes":[2,4,5],"tags":{"highway":"primary","name":"Hill Road","oneway":"yes"}}
+  ]
+}

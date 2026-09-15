@@ -1,0 +1,11 @@
+services:
+  prahari:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      OVERPASS_URL: https://overpass-api.de/api/interpreter
+      OVERPASS_TIMEOUT_SECONDS: 30
+      ROAD_CACHE_TTL_SECONDS: 600
+      MAX_ROUTE_DISTANCE_KM: 35
+    restart: unless-stopped

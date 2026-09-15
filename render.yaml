@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: prahari-flash-flood
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: OVERPASS_ENDPOINTS
+        value: https://overpass.private.coffee/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter,https://overpass-api.de/api/interpreter
+      - key: OVERPASS_TIMEOUT_SECONDS
+        value: "12"
+      - key: PROVIDER_COOLDOWN_SECONDS
+        value: "120"
+      - key: ROAD_CACHE_TTL_SECONDS
+        value: "900"
+      - key: PHOTON_URL
+        value: https://photon.komoot.io/reverse
+      - key: OSRM_ENDPOINTS
+        value: https://router.project-osrm.org/route/v1/driving,https://routing.openstreetmap.de/routed-car/route/v1/driving
+      - key: EXTERNAL_API_TIMEOUT_SECONDS
+        value: "12"
+      - key: MAX_ROUTE_DISTANCE_KM
+        value: "35"

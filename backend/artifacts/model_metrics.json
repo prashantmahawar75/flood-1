@@ -1,0 +1,14 @@
+{
+  "model": "RandomForestClassifier",
+  "n_estimators": 30,
+  "max_depth": 5,
+  "random_state": 42,
+  "threshold": 0.8,
+  "roc_auc": 0.9170576407506703,
+  "precision": 0.10954063604240283,
+  "recall": 0.3780487804878049,
+  "f1": 0.16986301369863013,
+  "train_rows": 36133,
+  "test_rows": 9034,
+  "target": "flood_label_extended"
+}
